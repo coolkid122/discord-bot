@@ -3,12 +3,18 @@ import aiohttp
 import asyncio
 from discord import Webhook, File
 import re
+from fastapi import FastAPI
+
+app = FastAPI()
+latest_code = None
 
 TOKEN = os.environ.get('TOKEN')
 MONITORED_CHANNEL_ID = 1429536067803021413
 WEBHOOK_URL = 'https://discord.com/api/webhooks/1428934406323703858/ojSGzBc_XsUVPZcUDKO0p5Iz5qFS-YGZ1BMcgktuhTCcmW7erYWC41NwsmBY8RuIn9fO'
 
-latest_code = None
+@app.get("/latest")
+async def get_latest_code():
+    return {"code": latest_code} if latest_code else {"error": "No code available"}
 
 async def monitor_discord_channel(token, channel_id):
     global latest_code
@@ -38,10 +44,12 @@ async def process_message(message, session):
         webhook = Webhook.from_url(WEBHOOK_URL, session=session)
         await webhook.send(content=f"{code}")
         latest_code = code
-        print(f"Sent code: {latest_code}")
+        print(f"Sent code: {code}")
 
 async def main():
     await monitor_discord_channel(TOKEN, MONITORED_CHANNEL_ID)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    import uvicorn
+    asyncio.create_task(main())
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
