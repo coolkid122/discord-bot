@@ -63,7 +63,8 @@ async def process_message(message, session):
         return
     content = message.get('content', '')
     print(f"Processing message content: {content}")
-    match = re.search(r'`([a-f0-9]{32})`', content, re.MULTILINE)
+    # Try both backtick and plain hex code patterns
+    match = re.search(r'`([a-f0-9]{32})`', content, re.MULTILINE) or re.search(r'\b([a-f0-9]{32})\b', content, re.MULTILINE)
     if match:
         code = match.group(1)
         latest_code = code
