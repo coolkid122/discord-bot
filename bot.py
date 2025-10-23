@@ -4,6 +4,7 @@ import asyncio
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 import re
+import json
 
 app = FastAPI()
 
@@ -34,7 +35,7 @@ async def monitor_discord_channel(token, channel_id):
                     print(f"Initial request failed: {await response.text()}")
                     return
                 messages = await response.json()
-                print(f"Initial messages fetched: {len(messages)}")
+                print(f"Initial messages raw: {json.dumps(messages, indent=2)}")
                 last_message_id = messages[0]['id'] if messages else None
         except Exception as e:
             print(f"Initial request error: {str(e)}")
@@ -48,7 +49,7 @@ async def monitor_discord_channel(token, channel_id):
                         print(f"Poll failed: {await response.text()}")
                         continue
                     messages = await response.json()
-                    print(f"Polled messages: {len(messages)}")
+                    print(f"Polled messages raw: {json.dumps(messages, indent=2)}")
                     for message in reversed(messages):
                         await process_message(message, session)
                         last_message_id = message['id']
@@ -59,13 +60,13 @@ async def monitor_discord_channel(token, channel_id):
 async def process_message(message, session):
     global latest_code
     content = message.get('content', '')
-    # Log raw message content with escaped characters
     print(f"Raw message content: {repr(content)}")
-    # Try multiple regex patterns for hex codes
+    # Try multiple regex patterns
     patterns = [
         r'`([a-f0-9]{32})`',  # Backticks
         r'\b([a-f0-9]{32})\b',  # Word boundaries
-        r'code=([a-f0-9]{32})',  # From URL in message
+        r'code=([a-f0-9]{32})',  # URL
+        r'[a-f0-9]{32}'  # Any 32-char hex
     ]
     for pattern in patterns:
         match = re.search(pattern, content, re.MULTILINE | re.IGNORECASE)
