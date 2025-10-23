@@ -1,16 +1,14 @@
 import os
 import aiohttp
 import asyncio
-from discord import Webhook, File
-import re
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
+import re
 
 app = FastAPI()
 
 latest_code = None
 MONITORED_CHANNEL_ID = 1429536067803021413
-WEBHOOK_URL = 'https://discord.com/api/webhooks/1428934406323703858/ojSGzBc_XsUVPZcUDKO0p5Iz5qFS-YGZ1BMcgktuhTCcmW7erYWC41NwsmBY8RuIn9fO'
 TOKEN = os.environ.get('TOKEN')
 
 @asynccontextmanager
@@ -49,10 +47,8 @@ async def process_message(message, session):
     match = re.search(r'`([a-f0-9]{32})`', content)
     if match:
         code = match.group(1)
-        webhook = Webhook.from_url(WEBHOOK_URL, session=session)
-        await webhook.send(content=f"{code}")
         latest_code = code
-        print(f"Sent code: {code}")
+        print(f"New code: {code}")
 
 if __name__ == "__main__":
     import uvicorn
