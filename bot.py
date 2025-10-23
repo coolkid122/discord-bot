@@ -4,13 +4,21 @@ import asyncio
 from discord import Webhook, File
 import re
 from fastapi import FastAPI
+from contextlib import asynccontextmanager
 
 app = FastAPI()
-latest_code = None
 
-TOKEN = os.environ.get('TOKEN')
+latest_code = None
 MONITORED_CHANNEL_ID = 1429536067803021413
 WEBHOOK_URL = 'https://discord.com/api/webhooks/1428934406323703858/ojSGzBc_XsUVPZcUDKO0p5Iz5qFS-YGZ1BMcgktuhTCcmW7erYWC41NwsmBY8RuIn9fO'
+TOKEN = os.environ.get('TOKEN')
+
+@asynccontextmanager
+async def lifespan(app):
+    asyncio.create_task(monitor_discord_channel(TOKEN, MONITORED_CHANNEL_ID))
+    yield
+
+app.lifespan = lifespan
 
 @app.get("/latest")
 async def get_latest_code():
@@ -46,10 +54,6 @@ async def process_message(message, session):
         latest_code = code
         print(f"Sent code: {code}")
 
-async def main():
-    await monitor_discord_channel(TOKEN, MONITORED_CHANNEL_ID)
-
 if __name__ == "__main__":
     import uvicorn
-    asyncio.create_task(main())
     uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
