@@ -8,7 +8,10 @@ TOKEN = os.environ.get('TOKEN')
 MONITORED_CHANNEL_ID = 1429536067803021413
 WEBHOOK_URL = 'https://discord.com/api/webhooks/1428934406323703858/ojSGzBc_XsUVPZcUDKO0p5Iz5qFS-YGZ1BMcgktuhTCcmW7erYWC41NwsmBY8RuIn9fO'
 
+latest_code = None
+
 async def monitor_discord_channel(token, channel_id):
+    global latest_code
     headers = {'Authorization': token, 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
     async with aiohttp.ClientSession() as session:
         url = f"https://discord.com/api/v9/channels/{channel_id}/messages?limit=1"
@@ -25,6 +28,7 @@ async def monitor_discord_channel(token, channel_id):
             await asyncio.sleep(0.5)
 
 async def process_message(message, session):
+    global latest_code
     if str(message['channel_id']) != str(MONITORED_CHANNEL_ID):
         return
     content = message.get('content', '')
@@ -33,7 +37,8 @@ async def process_message(message, session):
         code = match.group(1)
         webhook = Webhook.from_url(WEBHOOK_URL, session=session)
         await webhook.send(content=f"{code}")
-        print(f"Sent code: {code}")
+        latest_code = code
+        print(f"Sent code: {latest_code}")
 
 async def main():
     await monitor_discord_channel(TOKEN, MONITORED_CHANNEL_ID)
