@@ -1,8 +1,6 @@
 import os
 import aiohttp
 import asyncio
-import re
-from datetime import datetime
 
 async def monitor_discord_channel(token, channel_id):
     headers = {'Authorization': token, 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0'}
@@ -24,36 +22,22 @@ async def monitor_discord_channel(token, channel_id):
                     messages = await response.json()
                     for message in reversed(messages):
                         content = message.get('content', '')
-                        match = re.search(r'[a-f0-9]{32}', content, re.IGNORECASE)
-                        if match:
-                            code = match.group(0)
-                            print(f"New code: {code}")
-                            await send_webhook(session, code)
+                        if content:
+                            print(f"Forwarding message: {content}")
+                            await send_webhook(session, content)
                         last_message_id = message['id']
             except Exception as e:
                 print(f"Error: {str(e)}")
                 await asyncio.sleep(3)
             await asyncio.sleep(0.2)
 
-async def send_webhook(session, code):
+async def send_webhook(session, content):
     webhook_url = os.environ.get('WEBHOOK')
     if not webhook_url:
         print("Webhook URL not set")
         return
     payload = {
-        "embeds": [{
-            "title": "HIKLOS CORPORATION",
-            "description": f"[Join](https://roblox.com/share?code={code}&type=Server)\n`{code}`",
-            "color": 0x00b0f4,
-            "timestamp": datetime.now().isoformat(),
-            "author": {
-                "name": "Notifier",
-                "url": "https://example.com"
-            },
-            "footer": {
-                "text": "HIKLOS CORPORATION"
-            }
-        }],
+        "content": content,
         "username": "Notifier",
         "allowed_mentions": {"parse": []}
     }
