@@ -3,7 +3,6 @@ import aiohttp
 import asyncio
 import re
 from datetime import datetime
-from email.utils import formatdate
 
 async def monitor_discord_channel(token, channel_id):
     headers = {'Authorization': token, 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0'}
@@ -46,7 +45,7 @@ async def send_webhook(session, code):
             "title": "HIKLOS CORPORATION",
             "description": f"[Join](https://roblox.com/share?code={code}&type=Server)\n`{code}`",
             "color": 0x00b0f4,
-            "timestamp": formatdate(float(datetime.now().timestamp()), usegmt=True),
+            "timestamp": datetime.now().isoformat(),
             "author": {
                 "name": "Notifier",
                 "url": "https://example.com"
@@ -66,7 +65,7 @@ async def send_webhook(session, code):
                 await asyncio.sleep(retry_after)
                 return
             if response.status != 204:
-                print(f"Webhook failed: {response.status}")
+                print(f"Webhook failed: {response.status} - {await response.text()}")
     except Exception as e:
         print(f"Webhook error: {str(e)}")
 
