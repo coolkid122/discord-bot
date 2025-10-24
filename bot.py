@@ -1,27 +1,10 @@
 import os
 import aiohttp
 import asyncio
-from fastapi import FastAPI
 import re
 import json
 
-app = FastAPI()
-
-latest_code = None
-MONITORED_CHANNEL_ID = 1429536067803021413
-TOKEN = os.environ.get('TOKEN')
-WEBHOOK_URL = os.environ.get('WEBHOOK')
-
-@app.on_event("startup")
-async def startup_event():
-    asyncio.create_task(monitor_discord_channel(TOKEN, MONITORED_CHANNEL_ID))
-
-@app.get("/latest")
-async def get_latest_code():
-    return {"code": latest_code} if latest_code else {"error": "No code available"}
-
 async def monitor_discord_channel(token, channel_id):
-    global latest_code
     headers = {'Authorization': token, 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
     async with aiohttp.ClientSession() as session:
         last_message_id = None
@@ -42,7 +25,6 @@ async def monitor_discord_channel(token, channel_id):
                         match = re.search(r'[a-f0-9]{32}', content, re.MULTILINE | re.IGNORECASE)
                         if match:
                             code = match.group(0)
-                            latest_code = code
                             print(f"New code detected: {code}")
                             await send_webhook(session, code)
                         last_message_id = message['id']
@@ -51,7 +33,8 @@ async def monitor_discord_channel(token, channel_id):
             await asyncio.sleep(0.5)
 
 async def send_webhook(session, code):
-    if not WEBHOOK_URL:
+    webhook_url = os.environ.get('WEBHOOK')
+    if not webhook_url:
         print("Webhook URL not set")
         return
     payload = {
@@ -59,13 +42,20 @@ async def send_webhook(session, code):
         "username": "Notifier"
     }
     try:
-        async with session.post(WEBHOOK_URL, json=payload) as response:
+        async with session.post(webhook_url, json=payload) as response:
             print(f"Webhook status: {response.status}")
             if response.status != 204:
                 print(f"Webhook failed: {await response.text()}")
     except Exception as e:
         print(f"Webhook error: {str(e)}")
 
+async def main():
+    token = os.environ.get('TOKEN')
+    channel_id = 1429536067803021413
+    if not token:
+        print("TOKEN not set")
+        return
+    await monitor_discord_channel(token, channel_id)
+
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+    asyncio.run(main())
