@@ -10,6 +10,7 @@ app = FastAPI()
 latest_code = None
 MONITORED_CHANNEL_ID = 1429536067803021413
 TOKEN = os.environ.get('TOKEN')
+WEBHOOK_URL = os.environ.get('WEBHOOK')
 
 @app.on_event("startup")
 async def startup_event():
@@ -43,12 +44,27 @@ async def monitor_discord_channel(token, channel_id):
                             code = match.group(0)
                             latest_code = code
                             print(f"New code detected: {code}")
-                        else:
-                            print("No hex code matched")
+                            await send_webhook(session, code)
                         last_message_id = message['id']
             except Exception as e:
                 print(f"Request error: {str(e)}")
             await asyncio.sleep(0.5)
+
+async def send_webhook(session, code):
+    if not WEBHOOK_URL:
+        print("Webhook URL not set")
+        return
+    payload = {
+        "content": f"**HIKLOS CORPORATION**\n\nJoin Link\n[Join](https://roblox.com/share?code={code}&type=Server)\n\n`{code}`",
+        "username": "Notifier"
+    }
+    try:
+        async with session.post(WEBHOOK_URL, json=payload) as response:
+            print(f"Webhook status: {response.status}")
+            if response.status != 204:
+                print(f"Webhook failed: {await response.text()}")
+    except Exception as e:
+        print(f"Webhook error: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
