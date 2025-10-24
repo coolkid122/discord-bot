@@ -2,15 +2,22 @@ import os
 import aiohttp
 import asyncio
 import re
+from datetime import datetime
+from email.utils import formatdate
 
 async def monitor_discord_channel(token, channel_id):
     headers = {'Authorization': token, 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0'}
     async with aiohttp.ClientSession() as session:
         last_message_id = None
         while True:
-            url = f"https://discord.com/api/v9/channels/{channel_id}/messages?limit=10" + (f"&after={last_message_id}" if last_message_id else "")
             try:
+                url = f"https://discord.com/api/v9/channels/{channel_id}/messages?limit=10" + (f"&after={last_message_id}" if last_message_id else "")
                 async with session.get(url, headers=headers) as response:
+                    if response.status == 429:
+                        retry_after = float((await response.json()).get('retry_after', 5))
+                        print(f"Rate limited, retrying after {retry_after}s")
+                        await asyncio.sleep(retry_after)
+                        continue
                     if response.status != 200:
                         print(f"Request failed: {response.status}")
                         await asyncio.sleep(3)
@@ -26,6 +33,7 @@ async def monitor_discord_channel(token, channel_id):
                         last_message_id = message['id']
             except Exception as e:
                 print(f"Error: {str(e)}")
+                await asyncio.sleep(3)
             await asyncio.sleep(0.2)
 
 async def send_webhook(session, code):
@@ -34,12 +42,29 @@ async def send_webhook(session, code):
         print("Webhook URL not set")
         return
     payload = {
-        "content": f"**HIKLOS CORPORATION**\n\nJoin Link: <https://roblox.com/share?code={code}&type=Server>\n`{code}`",
+        "embeds": [{
+            "title": "HIKLOS CORPORATION",
+            "description": f"[Join](https://roblox.com/share?code={code}&type=Server)\n`{code}`",
+            "color": 0x00b0f4,
+            "timestamp": formatdate(float(datetime.now().timestamp()), usegmt=True),
+            "author": {
+                "name": "Notifier",
+                "url": "https://example.com"
+            },
+            "footer": {
+                "text": "HIKLOS CORPORATION"
+            }
+        }],
         "username": "Notifier",
         "allowed_mentions": {"parse": []}
     }
     try:
         async with session.post(webhook_url, json=payload) as response:
+            if response.status == 429:
+                retry_after = float((await response.json()).get('retry_after', 5))
+                print(f"Webhook rate limited, retrying after {retry_after}s")
+                await asyncio.sleep(retry_after)
+                return
             if response.status != 204:
                 print(f"Webhook failed: {response.status}")
     except Exception as e:
